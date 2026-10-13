@@ -32,6 +32,28 @@ class AuthRepository {
     return response;
   }
 
+  Future<AuthResponse> updateProfile({
+    String? name,
+    String? email,
+    String? currentPassword,
+    String? newPassword,
+  }) async {
+    final cleanName = name?.trim();
+    final cleanEmail = email?.trim();
+    final response = await _api.updateProfile(
+      name: cleanName,
+      email: cleanEmail,
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    await _tokenStorage.saveSession(
+      token: response.token,
+      email: response.email,
+      name: response.name,
+    );
+    return response;
+  }
+
   Future<void> logout() async {
     await _tokenStorage.clearSession();
   }

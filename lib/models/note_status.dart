@@ -1,19 +1,21 @@
 enum NoteStatus {
-  open,
+  pending,
   inProgress,
-  resolved,
-  closed;
+  completed;
+
+  // Compatibility aliases
+  static const NoteStatus open = NoteStatus.pending;
+  static const NoteStatus resolved = NoteStatus.completed;
+  static const NoteStatus closed = NoteStatus.completed;
 
   String toServer() {
     switch (this) {
-      case NoteStatus.open:
-        return 'OPEN';
+      case NoteStatus.pending:
+        return 'PENDING';
       case NoteStatus.inProgress:
         return 'IN_PROGRESS';
-      case NoteStatus.resolved:
-        return 'RESOLVED';
-      case NoteStatus.closed:
-        return 'CLOSED';
+      case NoteStatus.completed:
+        return 'COMPLETED';
     }
   }
 
@@ -21,26 +23,27 @@ enum NoteStatus {
     switch (value?.toUpperCase()) {
       case 'IN_PROGRESS':
         return NoteStatus.inProgress;
+      case 'COMPLETED':
       case 'RESOLVED':
-        return NoteStatus.resolved;
       case 'CLOSED':
-        return NoteStatus.closed;
+        return NoteStatus.completed;
+      case 'PENDING':
       case 'OPEN':
       default:
-        return NoteStatus.open;
+        return NoteStatus.pending;
     }
   }
 
+  static NoteStatus fromString(String? value) => fromServer(value);
+
   String get displayName {
     switch (this) {
-      case NoteStatus.open:
-        return 'Open';
+      case NoteStatus.pending:
+        return 'Pending';
       case NoteStatus.inProgress:
         return 'In Progress';
-      case NoteStatus.resolved:
-        return 'Resolved';
-      case NoteStatus.closed:
-        return 'Closed';
+      case NoteStatus.completed:
+        return 'Completed';
     }
   }
 }

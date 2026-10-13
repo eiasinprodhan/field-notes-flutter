@@ -7,35 +7,93 @@ import 'package:intl/intl.dart';
 import '../../../bloc/note/note_bloc.dart';
 import '../../../bloc/site/site_bloc.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../models/field_note.dart';
 import '../../../models/note_status.dart';
 import 'note_form_screen.dart';
+import 'note_detail_screen.dart';
 
 class NoteListScreen extends StatefulWidget {
-  const NoteListScreen({super.key});
+  final String? initialSiteUuid;
+  const NoteListScreen({super.key, this.initialSiteUuid});
 
   @override
-  State<NoteListScreen> createState() => _NoteListScreenState();
+  State<NoteListScreen> createState() => NoteListScreenState();
 }
 
-class _NoteListScreenState extends State<NoteListScreen> {
+class NoteListScreenState extends State<NoteListScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   NoteStatus? _selectedStatus;
   String? _selectedSiteUuid;
+  bool _hasPhotoOnly = false;
+  bool _localOnly = false;
+  String _selectedSort = 'newest';
+  int _displayedCount = 10;
+  bool _isLoadingMore = false;
+
+  static const Map<String, String> _sortOptions = {
+    'newest': 'Newest First',
+    'oldest': 'Oldest First',
+    'title_az': 'Title A–Z',
+    'title_za': 'Title Z–A',
+    'status': 'By Status',
+  };
 
   @override
   void initState() {
     super.initState();
-    context.read<NoteBloc>().add(const LoadNotes());
+    _selectedSiteUuid = widget.initialSiteUuid;
+    _scrollController.addListener(_onScroll);
+    context.read<NoteBloc>().add(LoadNotes(siteUuid: _selectedSiteUuid));
     context.read<SiteBloc>().add(const LoadSites());
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  void _loadMore() {
+    if (_isLoadingMore) return;
+    setState(() => _isLoadingMore = true);
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _displayedCount += 10;
+          _isLoadingMore = false;
+        });
+      }
+    });
+  }
+
+  void _resetPaging() {
+    setState(() {
+      _displayedCount = 10;
+    });
+  }
+
+  void setStatusFilter(NoteStatus? status) {
+    setState(() => _selectedStatus = status);
+    _onFilterChanged();
+  }
+
+  void setSiteFilter(String? siteUuid) {
+    setState(() => _selectedSiteUuid = siteUuid);
+    _onFilterChanged();
+  }
+
   void _onFilterChanged() {
+    _resetPaging();
     context.read<NoteBloc>().add(LoadNotes(
           search: _searchController.text.trim(),
           status: _selectedStatus,
@@ -45,27 +103,23 @@ class _NoteListScreenState extends State<NoteListScreen> {
 
   Color _getStatusColor(NoteStatus status) {
     switch (status) {
-      case NoteStatus.open:
+      case NoteStatus.pending:
         return AppColors.statusOpen;
       case NoteStatus.inProgress:
         return AppColors.statusInProgress;
-      case NoteStatus.resolved:
+      case NoteStatus.completed:
         return AppColors.statusResolved;
-      case NoteStatus.closed:
-        return AppColors.statusClosed;
     }
   }
 
   IconData _getStatusIcon(NoteStatus status) {
     switch (status) {
-      case NoteStatus.open:
+      case NoteStatus.pending:
         return Icons.radio_button_unchecked_rounded;
       case NoteStatus.inProgress:
         return Icons.pending_outlined;
-      case NoteStatus.resolved:
+      case NoteStatus.completed:
         return Icons.check_circle_outline_rounded;
-      case NoteStatus.closed:
-        return Icons.cancel_outlined;
     }
   }
 
@@ -73,14 +127,18 @@ class _NoteListScreenState extends State<NoteListScreen> {
   Widget build(BuildContext context) {
     final sitesState = context.watch<SiteBloc>().state;
     final sites = sitesState is SiteLoaded ? sitesState.sites : [];
+    final textMuted = context.textMutedColor;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_note_screen',
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const NoteFormScreen()),
+            MaterialPageRoute(
+              builder: (_) => NoteFormScreen(initialSiteUuid: _selectedSiteUuid),
+            ),
           ).then((_) => _onFilterChanged());
         },
         backgroundColor: AppColors.primary,
@@ -98,42 +156,86 @@ class _NoteListScreenState extends State<NoteListScreen> {
               builder: (context, state) {
                 if (state is NoteLoading) {
                   return const Center(
-                    child:
-                        CircularProgressIndicator(color: AppColors.primary),
+                    child: CircularProgressIndicator(color: AppColors.primary),
                   );
                 }
 
                 if (state is NoteLoaded) {
-                  final notes = state.notes;
+                  var notes = List<FieldNote>.from(state.notes);
+                  if (_hasPhotoOnly) {
+                    notes = notes
+                        .where((n) =>
+                            n.photoUrl != null && n.photoUrl!.trim().isNotEmpty)
+                        .toList();
+                  }
+                  if (_localOnly) {
+                    notes = notes.where((n) => n.syncPending).toList();
+                  }
+
+                  switch (_selectedSort) {
+                    case 'oldest':
+                      notes.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+                      break;
+                    case 'title_az':
+                      notes.sort((a, b) =>
+                          a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+                      break;
+                    case 'title_za':
+                      notes.sort((a, b) =>
+                          b.title.toLowerCase().compareTo(a.title.toLowerCase()));
+                      break;
+                    case 'status':
+                      notes.sort((a, b) => a.status.index.compareTo(b.status.index));
+                      break;
+                    case 'newest':
+                    default:
+                      notes.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+                      break;
+                  }
 
                   if (notes.isEmpty) {
                     return _buildEmptyState();
                   }
 
+                  final visibleNotes = notes.take(_displayedCount).toList();
+
                   return CustomScrollView(
+                    controller: _scrollController,
                     slivers: [
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(20, 16, 20, 4),
-                          child: Text(
-                            '${notes.length} field note${notes.length == 1 ? '' : 's'}',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13,
-                              color: AppColors.onSurfaceMuted,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${notes.length} Field Note${notes.length == 1 ? '' : 's'}${visibleNotes.length < notes.length ? ' (showing ${visibleNotes.length})' : ''}',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13,
+                                  color: textMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                _sortOptions[_selectedSort] ?? '',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                         sliver: SliverList.separated(
-                          itemCount: notes.length,
+                          itemCount: visibleNotes.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 10),
                           itemBuilder: (context, index) {
-                            final note = notes[index];
+                            final note = visibleNotes[index];
                             return _NoteCard(
                               note: note,
                               statusColor: _getStatusColor(note.status),
@@ -143,12 +245,44 @@ class _NoteListScreenState extends State<NoteListScreen> {
                                   context,
                                   MaterialPageRoute(
                                       builder: (_) =>
-                                          NoteFormScreen(note: note)),
+                                          NoteDetailScreen(note: note)),
                                 ).then((_) => _onFilterChanged());
                               },
                             );
                           },
                         ),
+                      ),
+                      if (_isLoadingMore)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Loading more notes...',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 12,
+                                      color: textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: 80),
                       ),
                     ],
                   );
@@ -163,23 +297,94 @@ class _NoteListScreenState extends State<NoteListScreen> {
     );
   }
 
+  Widget _buildSortMenu(Color textPrimary, Color textMuted, Color surfaceSubtle, Color borderCol, Color cardBg) {
+    return PopupMenuButton<String>(
+      initialValue: _selectedSort,
+      tooltip: 'Sort notes',
+      onSelected: (val) {
+        setState(() => _selectedSort = val);
+        _resetPaging();
+      },
+      color: cardBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: borderCol),
+      ),
+      itemBuilder: (ctx) => _sortOptions.entries.map((entry) {
+        final isSelected = entry.key == _selectedSort;
+        return PopupMenuItem<String>(
+          value: entry.key,
+          child: Row(
+            children: [
+              Icon(
+                isSelected ? Icons.check_rounded : Icons.radio_button_unchecked_rounded,
+                size: 16,
+                color: isSelected ? AppColors.primary : textMuted,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                entry.value,
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? AppColors.primary : textPrimary,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: surfaceSubtle,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderCol, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sort_rounded, size: 15, color: AppColors.primary),
+            const SizedBox(width: 5),
+            Text(
+              _sortOptions[_selectedSort] ?? 'Sort',
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.arrow_drop_down_rounded, size: 16, color: textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilterSection(List sites) {
+    final textPrimary = context.textPrimaryColor;
+    final textMuted = context.textMutedColor;
+    final surfaceSubtle = context.surfaceSubtle;
+    final borderCol = context.borderColor;
+    final cardBg = context.surfaceColor;
+
     return Container(
-      color: AppColors.background,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      color: Colors.transparent,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             controller: _searchController,
             style: GoogleFonts.outfit(
-                color: AppColors.onSurface, fontSize: 14),
+                color: textPrimary, fontSize: 14),
             decoration: InputDecoration(
               hintText: 'Search notes, sites, customers...',
-              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+              prefixIcon: Icon(Icons.search_rounded, size: 20, color: textMuted),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      icon: Icon(Icons.clear_rounded, size: 18, color: textMuted),
                       onPressed: () {
                         _searchController.clear();
                         _onFilterChanged();
@@ -197,12 +402,18 @@ class _NoteListScreenState extends State<NoteListScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                _buildSortMenu(textPrimary, textMuted, surfaceSubtle, borderCol, cardBg),
+                const SizedBox(width: 6),
                 _StatusChip(
                   label: 'All',
-                  isSelected: _selectedStatus == null,
+                  isSelected: _selectedStatus == null && !_hasPhotoOnly && !_localOnly,
                   color: AppColors.primary,
                   onTap: () {
-                    setState(() => _selectedStatus = null);
+                    setState(() {
+                      _selectedStatus = null;
+                      _hasPhotoOnly = false;
+                      _localOnly = false;
+                    });
                     _onFilterChanged();
                   },
                 ),
@@ -224,6 +435,29 @@ class _NoteListScreenState extends State<NoteListScreen> {
                     ),
                   );
                 }),
+                _StatusChip(
+                  label: '📷 Has Photo',
+                  isSelected: _hasPhotoOnly,
+                  color: AppColors.accent,
+                  onTap: () {
+                    setState(() {
+                      _hasPhotoOnly = !_hasPhotoOnly;
+                    });
+                    _onFilterChanged();
+                  },
+                ),
+                const SizedBox(width: 6),
+                _StatusChip(
+                  label: '🔄 Local Only',
+                  isSelected: _localOnly,
+                  color: AppColors.warning,
+                  onTap: () {
+                    setState(() {
+                      _localOnly = !_localOnly;
+                    });
+                    _resetPaging();
+                  },
+                ),
               ],
             ),
           ),
@@ -231,27 +465,26 @@ class _NoteListScreenState extends State<NoteListScreen> {
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceCardLight,
+                color: surfaceSubtle,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.07),
+                  color: borderCol,
                   width: 1,
                 ),
               ),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
               child: DropdownButton<String?>(
                 isExpanded: true,
                 value: _selectedSiteUuid,
                 underline: const SizedBox.shrink(),
-                dropdownColor: AppColors.surfaceCard,
+                dropdownColor: cardBg,
                 hint: Text('Filter by site',
                     style: GoogleFonts.outfit(
-                        color: AppColors.onSurfaceMuted, fontSize: 13)),
+                        color: textMuted, fontSize: 13)),
                 style: GoogleFonts.outfit(
-                    color: AppColors.onSurface, fontSize: 13),
-                icon: const Icon(Icons.expand_more_rounded,
-                    color: AppColors.onSurfaceMuted, size: 20),
+                    color: textPrimary, fontSize: 13),
+                icon: Icon(Icons.expand_more_rounded,
+                    color: textMuted, size: 20),
                 items: [
                   DropdownMenuItem<String?>(
                     value: null,
@@ -277,42 +510,108 @@ class _NoteListScreenState extends State<NoteListScreen> {
   }
 
   Widget _buildEmptyState() {
+    final surfaceSubtle = context.surfaceSubtle;
+    final borderCol = context.borderColor;
+    final textPrimary = context.textPrimaryColor;
+    final textMuted = context.textMutedColor;
+
+    final query = _searchController.text.trim();
+    final hasFilter = query.isNotEmpty ||
+        _selectedStatus != null ||
+        _selectedSiteUuid != null ||
+        _hasPhotoOnly ||
+        _localOnly ||
+        _selectedSort != 'newest';
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppColors.heroGradient,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.06),
-                width: 1,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: surfaceSubtle,
+                border: Border.all(
+                  color: borderCol,
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                hasFilter ? Icons.search_off_rounded : Icons.note_alt_outlined,
+                size: 36,
+                color: textMuted,
               ),
             ),
-            child: const Icon(Icons.note_alt_outlined,
-                size: 36, color: AppColors.onSurfaceMuted),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No notes found',
-            style: GoogleFonts.outfit(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.onSurface,
+            const SizedBox(height: 16),
+            Text(
+              hasFilter
+                  ? (query.isNotEmpty
+                      ? 'No field notes found for "$query"'
+                      : 'No field notes found matching filters')
+                  : 'No field notes found',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Tap "+ New Note" to capture your observations',
-            style: GoogleFonts.outfit(
-              fontSize: 14,
-              color: AppColors.onSurfaceMuted,
+            const SizedBox(height: 6),
+            Text(
+              hasFilter
+                  ? 'Try checking your search terms or clear filters to view all notes'
+                  : 'Tap "+ New Note" to capture your observations',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                color: textMuted,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            if (hasFilter)
+              OutlinedButton.icon(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _selectedStatus = null;
+                    _selectedSiteUuid = null;
+                    _hasPhotoOnly = false;
+                    _localOnly = false;
+                    _selectedSort = 'newest';
+                  });
+                  _onFilterChanged();
+                },
+                icon: const Icon(Icons.clear_all_rounded, size: 16),
+                label: const Text('Clear Filters'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                ),
+              )
+            else
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          NoteFormScreen(initialSiteUuid: _selectedSiteUuid),
+                    ),
+                  ).then((_) => _onFilterChanged());
+                },
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('New Note'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -333,6 +632,10 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceSubtle = context.surfaceSubtle;
+    final borderCol = context.borderColor;
+    final textMuted = context.textMutedColor;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -340,13 +643,13 @@ class _StatusChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? color.withValues(alpha: 0.2)
-              : AppColors.surfaceCardLight,
+              ? color.withValues(alpha: 0.18)
+              : surfaceSubtle,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected
                 ? color.withValues(alpha: 0.5)
-                : Colors.white.withValues(alpha: 0.06),
+                : borderCol,
             width: 1,
           ),
         ),
@@ -355,7 +658,7 @@ class _StatusChip extends StatelessWidget {
           style: GoogleFonts.outfit(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            color: isSelected ? color : AppColors.onSurfaceMuted,
+            color: isSelected ? color : textMuted,
           ),
         ),
       ),
@@ -378,6 +681,11 @@ class _NoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardBg = context.surfaceColor;
+    final borderCol = context.borderColor;
+    final textPrimary = context.textPrimaryColor;
+    final textMuted = context.textMutedColor;
+
     final dateStr = DateFormat('MMM dd · HH:mm')
         .format(note.dateTime.toLocal());
 
@@ -386,9 +694,9 @@ class _NoteCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: AppColors.surfaceCard,
+          color: cardBg,
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: borderCol,
             width: 1,
           ),
         ),
@@ -419,7 +727,7 @@ class _NoteCard extends StatelessWidget {
                           style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
-                            color: AppColors.onSurface,
+                            color: textPrimary,
                           ),
                         ),
                       ),
@@ -428,7 +736,7 @@ class _NoteCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.15),
+                          color: statusColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
@@ -453,14 +761,14 @@ class _NoteCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined,
+                        const Icon(Icons.location_on_outlined,
                             size: 13, color: AppColors.accent),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             '${note.customerName ?? 'Customer'} · ${note.siteName ?? 'Site'}',
                             style: GoogleFonts.outfit(
-                              color: AppColors.accent.withValues(alpha: 0.8),
+                              color: AppColors.accent,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -478,26 +786,33 @@ class _NoteCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(
-                        color: AppColors.onSurfaceMuted,
+                        color: textMuted,
                         fontSize: 13,
                         height: 1.5,
                       ),
                     ),
                   ],
-                  if (note.photoUrl != null &&
-                      note.photoUrl!.isNotEmpty &&
-                      !note.photoUrl!.startsWith('http') &&
-                      !note.photoUrl!.startsWith('/')) ...[
+                  if (note.photoUrl != null && note.photoUrl!.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.file(
-                        File(note.photoUrl!),
-                        height: 110,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                      ),
+                      child: note.photoUrl!.startsWith('http')
+                          ? Image.network(
+                              note.photoUrl!,
+                              height: 110,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox.shrink(),
+                            )
+                          : Image.file(
+                              File(note.photoUrl!),
+                              height: 110,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox.shrink(),
+                            ),
                     ),
                   ],
                   const SizedBox(height: 10),
@@ -505,15 +820,13 @@ class _NoteCard extends StatelessWidget {
                     children: [
                       Icon(Icons.schedule_outlined,
                           size: 12,
-                          color:
-                              AppColors.onSurfaceMuted.withValues(alpha: 0.6)),
+                          color: textMuted.withValues(alpha: 0.7)),
                       const SizedBox(width: 4),
                       Text(
                         dateStr,
                         style: GoogleFonts.outfit(
                           fontSize: 11,
-                          color: AppColors.onSurfaceMuted
-                              .withValues(alpha: 0.7),
+                          color: textMuted,
                         ),
                       ),
                       const Spacer(),
@@ -532,7 +845,7 @@ class _NoteCard extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.cloud_upload_outlined,
+                              const Icon(Icons.cloud_upload_outlined,
                                   size: 11, color: AppColors.warning),
                               const SizedBox(width: 4),
                               Text(

@@ -31,6 +31,24 @@ Future<AuthResponse> login(String email, String password) async {
     return AuthResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<AuthResponse> updateProfile({
+    String? name,
+    String? email,
+    String? currentPassword,
+    String? newPassword,
+  }) async {
+    final response = await _dio.put(
+      '/api/auth/profile',
+      data: {
+        if (name != null) 'name': name,
+        if (email != null) 'email': email,
+        if (currentPassword != null) 'currentPassword': currentPassword,
+        if (newPassword != null) 'newPassword': newPassword,
+      },
+    );
+    return AuthResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
 Future<List<Customer>> getCustomers() async {
     final response = await _dio.get('/api/customers');
     final list = response.data as List<dynamic>;

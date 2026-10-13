@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../bloc/auth/auth_bloc.dart';
+import '../../../bloc/settings/settings_bloc.dart';
 import '../../../core/storage/settings_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../auth/auth_flow_screen.dart';
@@ -86,79 +87,110 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  Widget _buildThemeToggleButton(BuildContext context, bool isDark) {
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          final newMode = isDark ? ThemeMode.light : ThemeMode.dark;
+          context.read<SettingsBloc>().add(UpdateThemeMode(newMode));
+        },
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: context.surfaceSubtle,
+            shape: BoxShape.circle,
+            border: Border.all(color: context.borderColor),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            size: 18,
+            color: isDark ? const Color(0xFFFBBF24) : AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLastPage = _currentPage == _pages.length - 1;
+    final isDark = context.isDarkMode;
+    final scaffoldBg = context.scaffoldBg;
+    final surfaceSubtle = context.surfaceSubtle;
+    final textPrimary = context.textPrimaryColor;
+    final textSecondary = context.textSecondaryColor;
+    final borderCol = context.borderColor;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scaffoldBg,
       body: SafeArea(
         child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.4),
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            gradient: const LinearGradient(
+                              colors: [AppColors.primary, AppColors.secondary],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary
+                                    .withValues(alpha: isDark ? 0.35 : 0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.asset(
-                            'assets/images/logo.jpg',
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.edit_note,
-                              color: AppColors.secondary,
-                              size: 18,
+                          padding: const EdgeInsets.all(2),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.asset(
+                              'assets/images/logo.jpg',
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.edit_note,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'FIELD NOTES',
-                        style: GoogleFonts.syne(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 2.0,
-                          color: AppColors.textPrimary,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'FIELD NOTES',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.syne(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5,
+                              color: textPrimary,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  TextButton(
-                    onPressed: _completeOnboarding,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: BorderSide(
-                          color: AppColors.border.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
-                    child: Text(
-                      'Skip',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
+                      ],
                     ),
                   ),
+                  _buildThemeToggleButton(context, isDark),
                 ],
               ),
             ),
@@ -181,12 +213,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(28),
                               border: Border.all(
-                                color: item.tagColor.withValues(alpha: 0.3),
+                                color: item.tagColor
+                                    .withValues(alpha: isDark ? 0.35 : 0.25),
                                 width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: item.tagColor.withValues(alpha: 0.2),
+                                  color: item.tagColor
+                                      .withValues(alpha: isDark ? 0.22 : 0.12),
                                   blurRadius: 30,
                                   offset: const Offset(0, 10),
                                 ),
@@ -201,7 +235,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     item.image,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => Container(
-                                      color: AppColors.surface,
+                                      color: surfaceSubtle,
                                       child: Icon(
                                         item.icon,
                                         size: 80,
@@ -217,7 +251,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                         stops: const [0.65, 1.0],
                                         colors: [
                                           Colors.transparent,
-                                          AppColors.background.withValues(alpha: 0.9),
+                                          scaffoldBg.withValues(
+                                              alpha: isDark ? 0.92 : 0.88),
                                         ],
                                       ),
                                     ),
@@ -234,10 +269,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: item.tagColor.withValues(alpha: 0.12),
+                            color: item.tagColor
+                                .withValues(alpha: isDark ? 0.14 : 0.10),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: item.tagColor.withValues(alpha: 0.4),
+                              color: item.tagColor
+                                  .withValues(alpha: isDark ? 0.45 : 0.35),
                               width: 1,
                             ),
                           ),
@@ -270,7 +307,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.3,
-                            color: AppColors.textPrimary,
+                            color: textPrimary,
                             height: 1.25,
                           ),
                         ),
@@ -284,7 +321,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
                               height: 1.5,
-                              color: AppColors.textSecondary,
+                              color: textSecondary,
                             ),
                           ),
                         ),
@@ -318,9 +355,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   ],
                                 )
                               : null,
-                          color: _currentPage == i
+                          color: _currentPage == i ? null : surfaceSubtle,
+                          border: _currentPage == i
                               ? null
-                              : AppColors.surfaceLight,
+                              : Border.all(color: borderCol, width: 0.5),
                         ),
                       ),
                     ),
@@ -348,7 +386,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.4),
+                            color: AppColors.primary
+                                .withValues(alpha: isDark ? 0.4 : 0.28),
                             blurRadius: 18,
                             offset: const Offset(0, 6),
                           ),

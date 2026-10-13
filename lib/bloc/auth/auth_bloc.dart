@@ -32,6 +32,23 @@ class RegisterRequested extends AuthEvent {
 
 class LogoutRequested extends AuthEvent {}
 
+class ProfileUpdated extends AuthEvent {
+  final String? name;
+  final String? email;
+  final String? currentPassword;
+  final String? newPassword;
+
+  const ProfileUpdated({
+    this.name,
+    this.email,
+    this.currentPassword,
+    this.newPassword,
+  });
+
+  @override
+  List<Object?> get props => [name, email, currentPassword, newPassword];
+}
+
 abstract class AuthState extends Equatable {
   const AuthState();
   @override
@@ -94,6 +111,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } catch (e) {
         emit(AuthFailure(_extractErrorMessage(e)));
         emit(Unauthenticated());
+      }
+    });
+
+    on<ProfileUpdated>((event, emit) async {
+      try {
+        final res = await _authRepo.updateProfile(
+          name: event.name,
+          email: event.email,
+          currentPassword: event.currentPassword,
+          newPassword: event.newPassword,
+        );
+        emit(Authenticated(email: res.email, name: res.name));
+      } catch (e) {
+        emit(AuthFailure(_extractErrorMessage(e)));
+        final currentEmail = _authRepo.currentEmail ?? '';
+        final currentName = _authRepo.currentName ?? '';
+        emit(Authenticated(email: currentEmail, name: currentName));
       }
     });
 

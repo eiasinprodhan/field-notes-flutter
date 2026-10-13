@@ -22,9 +22,12 @@ import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/customer/customer_form_screen.dart';
 import 'presentation/screens/site/site_form_screen.dart';
+import 'presentation/screens/site/site_list_screen.dart';
 import 'presentation/screens/note/note_form_screen.dart';
 import 'presentation/screens/customer/customer_detail_screen.dart';
 import 'presentation/screens/note/note_list_screen.dart';
+import 'presentation/screens/sync/sync_status_screen.dart';
+import 'presentation/screens/profile/profile_screen.dart';
 
 class App extends StatelessWidget {
   const App({
@@ -58,14 +61,22 @@ class App extends StatelessWidget {
           BlocProvider(create: (_) => SettingsBloc(settings)),
           BlocProvider(create: (_) => ConnectivityBloc(Connectivity())),
         ],
-        child: MaterialApp(
-          title: 'Field Notes',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.darkTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: ThemeMode.dark,
-          home: const AppRoot(),
-          routes: appRoutes,
+        child: BlocBuilder<SettingsBloc, SettingsState>(
+          builder: (context, settingsState) {
+            final themeMode = settingsState is SettingsLoaded
+                ? settingsState.themeMode
+                : ThemeMode.system;
+
+            return MaterialApp(
+              title: 'Field Notes',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: themeMode,
+              home: const AppRoot(),
+              routes: appRoutes,
+            );
+          },
         ),
       ),
     );
@@ -96,17 +107,17 @@ class _AppRootState extends State<AppRoot> {
               context.read<ConnectivityBloc>().add(ConnectivityStarted());
               context.read<SyncBloc>().add(SyncRequested());
               context.read<CustomerBloc>().add(LoadCustomers());
+              context.read<SiteBloc>().add(const LoadSites());
               context.read<NoteBloc>().add(const LoadNotes());
             }
           },
         ),
         BlocListener<ConnectivityBloc, ConnectivityState>(
+          listenWhen: (previous, current) => !previous.isOnline && current.isOnline,
           listener: (context, state) {
-            if (state.isOnline) {
-              final auth = context.read<AuthBloc>().state;
-              if (auth is Authenticated) {
-                context.read<SyncBloc>().add(SyncRequested());
-              }
+            final auth = context.read<AuthBloc>().state;
+            if (auth is Authenticated) {
+              context.read<SyncBloc>().add(SyncRequested());
             }
           },
         ),
@@ -124,7 +135,10 @@ final appRoutes = <String, WidgetBuilder>{
   '/settings': (_) => const SettingsScreen(),
   '/customer-form': (_) => const CustomerFormScreen(),
   '/site-form': (_) => const SiteFormScreen(),
+  '/site-list': (_) => const SiteListScreen(),
   '/note-form': (_) => const NoteFormScreen(),
   '/customer-detail': (_) => const CustomerDetailScreen(),
   '/note-list': (_) => const NoteListScreen(),
+  '/sync-status': (_) => const SyncStatusScreen(),
+  '/profile': (_) => const ProfileScreen(),
 };

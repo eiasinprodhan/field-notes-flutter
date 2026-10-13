@@ -1,7 +1,8 @@
-import 'dart:io';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 import '../../models/customer.dart';
 import '../../models/site.dart';
@@ -21,13 +22,20 @@ class AppDatabase {
   }
 
   Future<Database> _initDatabase() async {
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
+    if (kIsWeb) {
+      databaseFactory = databaseFactoryFfiWebNoWebWorker;
+    } else if (Platform.isWindows || Platform.isLinux) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
 
-    final dbPath = await getDatabasesPath();
-    final path = p.join(dbPath, 'field_notes.db');
+    final String path;
+    if (kIsWeb) {
+      path = 'field_notes.db';
+    } else {
+      final dbPath = await getDatabasesPath();
+      path = p.join(dbPath, 'field_notes.db');
+    }
 
     return await openDatabase(
       path,
@@ -277,6 +285,23 @@ Future<List<Customer>> getDirtyCustomers() async {
     final db = await database;
     final rows = await db.query('field_notes', where: 'sync_pending = 1');
     return rows.map((e) => FieldNote.fromMap(e)).toList();
+  }
+  Future<Map<String, int>> getPendingSyncCounts() async {
+    final db = await database;
+    final custRes = await db.rawQuery('SELECT COUNT(*) as cnt FROM customers WHERE sync_pending = 1');
+    final siteRes = await db.rawQuery('SELECT COUNT(*) as cnt FROM sites WHERE sync_pending = 1');
+    final noteRes = await db.rawQuery('SELECT COUNT(*) as cnt FROM field_notes WHERE sync_pending = 1');
+
+    final customers = (custRes.first['cnt'] as int?) ?? 0;
+    final sites = (siteRes.first['cnt'] as int?) ?? 0;
+    final notes = (noteRes.first['cnt'] as int?) ?? 0;
+
+    return {
+      'customers': customers,
+      'sites': sites,
+      'notes': notes,
+      'total': customers + sites + notes,
+    };
   }
 
   Future<void> markEntitiesClean({

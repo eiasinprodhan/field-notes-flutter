@@ -45,7 +45,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCustomerUuid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a customer')),
+        const SnackBar(content: Text('Please select a customer for this site')),
       );
       return;
     }
@@ -74,6 +74,13 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.site != null;
+    final scaffoldBg = context.scaffoldBg;
+    final textPrimary = context.textPrimaryColor;
+    final textMuted = context.textMutedColor;
+    final cardBg = context.surfaceColor;
+    final surfaceSubtle = context.surfaceSubtle;
+    final borderCol = context.borderColor;
+
     final customersState = context.watch<CustomerBloc>().state;
     final customers =
         customersState is CustomerLoaded ? customersState.customers : [];
@@ -83,21 +90,20 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: scaffoldBg,
         leading: IconButton(
           icon: Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.surfaceCardLight,
+              color: surfaceSubtle,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08), width: 1),
+              border: Border.all(color: borderCol, width: 1),
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded,
-                size: 16, color: AppColors.onSurface),
+            child: Icon(Icons.arrow_back_ios_new_rounded,
+                size: 16, color: textPrimary),
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -106,7 +112,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: AppColors.onSurface,
+            color: textPrimary,
           ),
         ),
       ),
@@ -129,12 +135,12 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline_rounded,
+                      const Icon(Icons.info_outline_rounded,
                           color: AppColors.warning, size: 18),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'No customers found. Create a customer first.',
+                          'No customers found. Create a customer before adding a site.',
                           style: GoogleFonts.outfit(
                             color: AppColors.warning,
                             fontSize: 13,
@@ -145,18 +151,26 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                   ),
                 )
               else ...[
-                _SectionLabel(label: 'Customer'),
+                Text(
+                  'ASSOCIATED CUSTOMER',
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: textMuted,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedCustomerUuid,
-                  dropdownColor: AppColors.surfaceCard,
+                  dropdownColor: cardBg,
                   style: GoogleFonts.outfit(
-                      color: AppColors.onSurface, fontSize: 14),
-                  icon: const Icon(Icons.expand_more_rounded,
-                      color: AppColors.onSurfaceMuted),
-                  decoration: const InputDecoration(
+                      color: textPrimary, fontSize: 14),
+                  icon: Icon(Icons.expand_more_rounded,
+                      color: textMuted),
+                  decoration: InputDecoration(
                     prefixIcon:
-                        Icon(Icons.business_rounded, size: 20),
+                        Icon(Icons.business_rounded, size: 20, color: textMuted),
                     hintText: 'Select customer',
                   ),
                   items: customers.map((c) {
@@ -175,39 +189,55 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                 ),
               ],
               const SizedBox(height: 20),
-              _SectionLabel(label: 'Site Name'),
+              Text(
+                'SITE / FACILITY NAME',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textMuted,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _siteNameController,
                 style: GoogleFonts.outfit(
-                    color: AppColors.onSurface, fontSize: 14),
-                decoration: const InputDecoration(
+                    color: textPrimary, fontSize: 14),
+                decoration: InputDecoration(
                   prefixIcon:
-                      Icon(Icons.location_city_rounded, size: 20),
-                  hintText: 'Enter site or facility name',
+                      Icon(Icons.location_city_rounded, size: 20, color: textMuted),
+                  hintText: 'Enter site, warehouse, or plant name',
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty)
                     ? 'Please enter site name'
                     : null,
               ),
               const SizedBox(height: 20),
-              _SectionLabel(label: 'Address'),
+              Text(
+                'ADDRESS & LOCATION DETAILS',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textMuted,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _addressController,
                 maxLines: 3,
                 style: GoogleFonts.outfit(
-                    color: AppColors.onSurface, fontSize: 14),
-                decoration: const InputDecoration(
+                    color: textPrimary, fontSize: 14),
+                decoration: InputDecoration(
                   prefixIcon: Padding(
-                    padding: EdgeInsets.only(bottom: 40),
-                    child: Icon(Icons.place_outlined, size: 20),
+                    padding: const EdgeInsets.only(bottom: 40),
+                    child: Icon(Icons.place_outlined, size: 20, color: textMuted),
                   ),
-                  hintText: 'Full address or location details',
+                  hintText: 'Street address, building, floor, or GPS description',
                   alignLabelWithHint: true,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
               GestureDetector(
                 onTap: _save,
                 child: Container(
@@ -246,24 +276,6 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label.toUpperCase(),
-      style: GoogleFonts.outfit(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: AppColors.onSurfaceMuted,
-        letterSpacing: 1.2,
       ),
     );
   }

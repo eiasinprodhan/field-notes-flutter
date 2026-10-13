@@ -60,23 +60,27 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.customer != null;
+    final scaffoldBg = context.scaffoldBg;
+    final textPrimary = context.textPrimaryColor;
+    final textMuted = context.textMutedColor;
+    final surfaceSubtle = context.surfaceSubtle;
+    final borderCol = context.borderColor;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: scaffoldBg,
         leading: IconButton(
           icon: Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.surfaceCardLight,
+              color: surfaceSubtle,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08), width: 1),
+              border: Border.all(color: borderCol, width: 1),
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded,
-                size: 16, color: AppColors.onSurface),
+            child: Icon(Icons.arrow_back_ios_new_rounded,
+                size: 16, color: textPrimary),
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -85,7 +89,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: AppColors.onSurface,
+            color: textPrimary,
           ),
         ),
       ),
@@ -96,14 +100,22 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _SectionLabel(label: 'Company Name'),
+              Text(
+                'CUSTOMER / COMPANY NAME',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textMuted,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _nameController,
                 style: GoogleFonts.outfit(
-                    color: AppColors.onSurface, fontSize: 14),
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.business_rounded, size: 20),
+                    color: textPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.business_rounded, size: 20, color: textMuted),
                   hintText: 'Enter customer or company name',
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty)
@@ -111,24 +123,31 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                     : null,
               ),
               const SizedBox(height: 20),
-              _SectionLabel(label: 'Contact Information'),
+              Text(
+                'CONTACT INFORMATION',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textMuted,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _contactController,
                 maxLines: 3,
                 style: GoogleFonts.outfit(
-                    color: AppColors.onSurface, fontSize: 14),
-                decoration: const InputDecoration(
+                    color: textPrimary, fontSize: 14),
+                decoration: InputDecoration(
                   prefixIcon: Padding(
-                    padding: EdgeInsets.only(bottom: 40),
-                    child: Icon(Icons.contact_mail_outlined, size: 20),
+                    padding: const EdgeInsets.only(bottom: 40),
+                    child: Icon(Icons.contact_mail_outlined, size: 20, color: textMuted),
                   ),
-                  hintText:
-                      'Phone, email, contact person...',
+                  hintText: 'Phone, email, address, or contact person...',
                   alignLabelWithHint: true,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
               GestureDetector(
                 onTap: _save,
                 child: Container(
@@ -167,24 +186,6 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label.toUpperCase(),
-      style: GoogleFonts.outfit(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: AppColors.onSurfaceMuted,
-        letterSpacing: 1.2,
       ),
     );
   }

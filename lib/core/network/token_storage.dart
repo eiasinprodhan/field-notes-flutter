@@ -21,6 +21,10 @@ class TokenStorage {
   String? getName() => _prefs.getString(StorageKeys.userName);
   bool get hasToken => getToken() != null && getToken()!.isNotEmpty;
 
+  Future<void> updateProfile({required String name}) async {
+    await _prefs.setString(StorageKeys.userName, name);
+  }
+
   Future<void> clearSession() async {
     await _prefs.remove(StorageKeys.token);
     await _prefs.remove(StorageKeys.userEmail);

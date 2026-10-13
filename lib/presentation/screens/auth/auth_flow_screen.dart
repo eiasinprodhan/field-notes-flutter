@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../bloc/auth/auth_bloc.dart';
+import '../../../bloc/settings/settings_bloc.dart';
 import '../../../core/theme/app_theme.dart';
 import '../onboarding/onboarding_screen.dart';
 
@@ -67,15 +68,6 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
     _slideController.forward();
   }
 
-  void _fillDemoCredentials() {
-    setState(() {
-      _emailController.text = 'worker@fieldnotes.com';
-      _passwordController.text = 'Password@123';
-      if (_isRegister) {
-        _nameController.text = 'Alex Morgan';
-      }
-    });
-  }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
@@ -106,13 +98,58 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
     );
   }
 
+  Widget _buildThemeToggleButton(BuildContext context, bool isDark) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          final newMode = isDark ? ThemeMode.light : ThemeMode.dark;
+          context.read<SettingsBloc>().add(UpdateThemeMode(newMode));
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+          decoration: BoxDecoration(
+            color: context.surfaceSubtle,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: context.borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                size: 15,
+                color: isDark ? const Color(0xFFFBBF24) : AppColors.primary,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                isDark ? 'Light' : 'Dark',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: context.textSecondaryColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+    final scaffoldBg = context.scaffoldBg;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scaffoldBg,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is AuthFailure) {
+          if (state is Authenticated) {
+            Navigator.of(context).pushReplacementNamed('/home');
+          } else if (state is AuthFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Row(
@@ -154,7 +191,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      AppColors.primary.withValues(alpha: 0.22),
+                      AppColors.primary.withValues(alpha: isDark ? 0.22 : 0.10),
                       Colors.transparent,
                     ],
                   ),
@@ -171,7 +208,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      AppColors.secondary.withValues(alpha: 0.18),
+                      AppColors.secondary.withValues(alpha: isDark ? 0.18 : 0.08),
                       Colors.transparent,
                     ],
                   ),
@@ -179,31 +216,44 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
               ),
             ),
             SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 24,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: _buildThemeToggleButton(context, isDark),
+                    ),
                   ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 440),
-                    child: FadeTransition(
-                      opacity: _fadeAnim,
-                      child: SlideTransition(
-                        position: _slideAnim,
-                        child: Column(
-                          children: [
-                            _buildHeader(),
-                            const SizedBox(height: 28),
-                            _buildFormCard(),
-                            const SizedBox(height: 20),
-                            _buildFooterLinks(),
-                          ],
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 440),
+                          child: FadeTransition(
+                            opacity: _fadeAnim,
+                            child: SlideTransition(
+                              position: _slideAnim,
+                              child: Column(
+                                children: [
+                                  _buildHeader(context),
+                                  const SizedBox(height: 28),
+                                  _buildFormCard(),
+                                  const SizedBox(height: 20),
+                                  _buildFooterLinks(),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ],
@@ -212,7 +262,11 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final isDark = context.isDarkMode;
+    final surfaceColor = context.surfaceColor;
+    final textSecondary = context.textSecondaryColor;
+
     return Column(
       children: [
         Container(
@@ -227,7 +281,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.4),
+                color: AppColors.primary.withValues(alpha: isDark ? 0.4 : 0.25),
                 blurRadius: 28,
                 offset: const Offset(0, 8),
               ),
@@ -240,7 +294,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
               'assets/images/logo.jpg',
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Container(
-                color: AppColors.surface,
+                color: surfaceColor,
                 child: const Icon(
                   Icons.edit_note_rounded,
                   color: AppColors.secondary,
@@ -252,9 +306,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
         ),
         const SizedBox(height: 18),
         ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFC7D2FE)],
-          ).createShader(bounds),
+          shaderCallback: (bounds) => context.titleGradient.createShader(bounds),
           child: Text(
             'FIELD NOTES',
             style: GoogleFonts.syne(
@@ -272,7 +324,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
               : 'Enterprise offline-first workspace login',
           style: GoogleFonts.inter(
             fontSize: 13,
-            color: AppColors.textSecondary,
+            color: textSecondary,
             fontWeight: FontWeight.w500,
           ),
           textAlign: TextAlign.center,
@@ -282,21 +334,20 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
   }
 
   Widget _buildFormCard() {
+    final isDark = context.isDarkMode;
+    final surfaceColor = context.surfaceColor;
+    final surfaceSubtle = context.surfaceSubtle;
+    final borderCol = context.borderColor;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.85),
+        color: surfaceColor.withValues(alpha: isDark ? 0.85 : 0.98),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: AppColors.border,
+          color: borderCol,
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 36,
-            offset: const Offset(0, 14),
-          ),
-        ],
+        boxShadow: context.cardShadow,
       ),
       padding: const EdgeInsets.all(24),
       child: Form(
@@ -307,9 +358,9 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: surfaceSubtle,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: borderCol),
               ),
               child: Row(
                 children: [
@@ -362,28 +413,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
               },
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildInputLabel('PASSWORD'),
-                if (!_isRegister)
-                  InkWell(
-                    onTap: _fillDemoCredentials,
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      child: Text(
-                        '⚡ Fill Demo',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.secondary,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            _buildInputLabel('PASSWORD'),
             const SizedBox(height: 6),
             _buildTextField(
               controller: _passwordController,
@@ -395,7 +425,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
                   _obscurePassword
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: AppColors.textTertiary,
+                  color: context.textMutedColor,
                   size: 20,
                 ),
                 onPressed: () =>
@@ -440,7 +470,8 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
                             ? []
                             : [
                                 BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.4),
+                                  color: AppColors.primary
+                                      .withValues(alpha: isDark ? 0.4 : 0.28),
                                   blurRadius: 18,
                                   offset: const Offset(0, 6),
                                 ),
@@ -497,7 +528,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.0,
-        color: AppColors.textSecondary,
+        color: context.textSecondaryColor,
       ),
     );
   }
@@ -511,33 +542,39 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
     Widget? suffixIcon,
     String? Function(String?)? validator,
   }) {
+    final surfaceSubtle = context.surfaceSubtle;
+    final textPrimary = context.textPrimaryColor;
+    final textSecondary = context.textSecondaryColor;
+    final textMuted = context.textMutedColor;
+    final borderCol = context.borderColor;
+
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
       style: GoogleFonts.inter(
-        color: AppColors.textPrimary,
+        color: textPrimary,
         fontSize: 14,
         fontWeight: FontWeight.w500,
       ),
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: GoogleFonts.inter(
-          color: AppColors.textTertiary,
+          color: textMuted,
           fontSize: 14,
         ),
-        prefixIcon: Icon(icon, size: 19, color: AppColors.textSecondary),
+        prefixIcon: Icon(icon, size: 19, color: textSecondary),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: AppColors.surfaceLight,
+        fillColor: surfaceSubtle,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: borderCol),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: borderCol),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -553,6 +590,9 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
   }
 
   Widget _buildFooterLinks() {
+    final textMuted = context.textMutedColor;
+    final isDark = context.isDarkMode;
+
     return Column(
       children: [
         OutlinedButton.icon(
@@ -572,7 +612,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
           ),
           style: OutlinedButton.styleFrom(
             side: BorderSide(
-              color: AppColors.secondary.withValues(alpha: 0.35),
+              color: AppColors.secondary.withValues(alpha: isDark ? 0.35 : 0.5),
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -587,10 +627,10 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.shield_outlined,
               size: 13,
-              color: AppColors.textTertiary,
+              color: textMuted,
             ),
             const SizedBox(width: 6),
             Text(
@@ -599,7 +639,7 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.6,
-                color: AppColors.textTertiary,
+                color: textMuted,
               ),
             ),
           ],
@@ -624,6 +664,8 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textSecondary = context.textSecondaryColor;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -653,7 +695,7 @@ class _TabButton extends StatelessWidget {
             Icon(
               icon,
               size: 15,
-              color: isActive ? Colors.white : AppColors.textSecondary,
+              color: isActive ? Colors.white : textSecondary,
             ),
             const SizedBox(width: 6),
             Text(
@@ -661,7 +703,7 @@ class _TabButton extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? Colors.white : AppColors.textSecondary,
+                color: isActive ? Colors.white : textSecondary,
               ),
             ),
           ],
@@ -670,3 +712,4 @@ class _TabButton extends StatelessWidget {
     );
   }
 }
+

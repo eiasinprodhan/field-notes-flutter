@@ -13,7 +13,7 @@ class FieldNote {
   final bool deleted;
   final bool syncPending;
 
-final String? siteName;
+  final String? siteName;
   final String? customerName;
   final String? customerUuid;
 
@@ -24,7 +24,7 @@ final String? siteName;
     this.description,
     this.location,
     DateTime? dateTime,
-    this.status = NoteStatus.open,
+    this.status = NoteStatus.pending,
     this.photoUrl,
     DateTime? updatedAt,
     this.deleted = false,

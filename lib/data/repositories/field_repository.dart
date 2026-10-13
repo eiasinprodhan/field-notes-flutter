@@ -22,7 +22,7 @@ class FieldRepository {
   FieldNotesApi get api => _api;
   SettingsStorage get settings => _settings;
 
-Future<List<Customer>> getCustomers({bool includeDeleted = false}) {
+  Future<List<Customer>> getCustomers({bool includeDeleted = false}) {
     return _db.getCustomers(includeDeleted: includeDeleted);
   }
 
@@ -59,7 +59,7 @@ Future<List<Customer>> getCustomers({bool includeDeleted = false}) {
     await _db.softDeleteCustomerLocally(uuid);
   }
 
-Future<List<Site>> getSites({String? customerUuid, bool includeDeleted = false}) {
+  Future<List<Site>> getSites({String? customerUuid, bool includeDeleted = false}) {
     return _db.getSites(customerUuid: customerUuid, includeDeleted: includeDeleted);
   }
 
@@ -98,7 +98,7 @@ Future<List<Site>> getSites({String? customerUuid, bool includeDeleted = false})
     await _db.softDeleteSiteLocally(uuid);
   }
 
-Future<List<FieldNote>> getNotes({
+  Future<List<FieldNote>> getNotes({
     String? search,
     NoteStatus? status,
     String? siteUuid,
@@ -162,8 +162,11 @@ Future<List<FieldNote>> getNotes({
     return _api.uploadPhoto(file);
   }
 
-Future<void> sync() async {
-    
+  Future<Map<String, int>> getPendingSyncCounts() {
+    return _db.getPendingSyncCounts();
+  }
+
+  Future<void> sync() async {
     final dirtyCustomers = await _db.getDirtyCustomers();
     final dirtySites = await _db.getDirtySites();
     final dirtyNotes = await _db.getDirtyNotes();
@@ -178,23 +181,23 @@ Future<void> sync() async {
       );
       await _api.pushSync(pushRequest);
 
-await _db.markEntitiesClean(
+      await _db.markEntitiesClean(
         customerUuids: dirtyCustomers.map((e) => e.uuid).toList(),
         siteUuids: dirtySites.map((e) => e.uuid).toList(),
         noteUuids: dirtyNotes.map((e) => e.uuid).toList(),
       );
     }
 
-final lastSyncTime = _settings.getLastSyncTime();
+    final lastSyncTime = _settings.getLastSyncTime();
     final pullResponse = await _api.pullSync(since: lastSyncTime);
 
-await _db.mergeServerData(
+    await _db.mergeServerData(
       customers: pullResponse.customers,
       sites: pullResponse.sites,
       notes: pullResponse.notes,
     );
 
-await _settings.setLastSyncTime(pullResponse.serverTime);
+    await _settings.setLastSyncTime(pullResponse.serverTime);
   }
 
   Future<void> clearLocalData() async {

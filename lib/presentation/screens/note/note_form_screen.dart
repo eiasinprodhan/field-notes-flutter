@@ -75,16 +75,20 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
-                  'Could not obtain GPS location. Ensure location is enabled.')),
+                  'Could not obtain GPS location. Ensure location permission is granted.')),
         );
       }
     }
   }
 
   void _choosePhotoSource() {
+    final surfaceColor = context.surfaceColor;
+    final textPrimary = context.textPrimaryColor;
+    final borderCol = context.borderColor;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surfaceCard,
+      backgroundColor: surfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -98,7 +102,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: borderCol,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -108,14 +112,14 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.onSurface,
+                  color: textPrimary,
                 ),
               ),
               const SizedBox(height: 16),
               _BottomSheetOption(
                 icon: Icons.camera_alt_outlined,
                 label: 'Take Photo',
-                subtitle: 'Open camera',
+                subtitle: 'Open device camera',
                 onTap: () async {
                   Navigator.pop(ctx);
                   final file = await PermissionHelper.pickFromCamera();
@@ -126,7 +130,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
               _BottomSheetOption(
                 icon: Icons.photo_library_outlined,
                 label: 'Choose from Gallery',
-                subtitle: 'Pick from device',
+                subtitle: 'Select from media library',
                 onTap: () async {
                   Navigator.pop(ctx);
                   final file = await PermissionHelper.pickFromGallery();
@@ -182,20 +186,25 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
 
   Color _getStatusColor(NoteStatus status) {
     switch (status) {
-      case NoteStatus.open:
+      case NoteStatus.pending:
         return AppColors.statusOpen;
       case NoteStatus.inProgress:
         return AppColors.statusInProgress;
-      case NoteStatus.resolved:
+      case NoteStatus.completed:
         return AppColors.statusResolved;
-      case NoteStatus.closed:
-        return AppColors.statusClosed;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.note != null;
+    final scaffoldBg = context.scaffoldBg;
+    final textPrimary = context.textPrimaryColor;
+    final textMuted = context.textMutedColor;
+    final cardBg = context.surfaceColor;
+    final surfaceSubtle = context.surfaceSubtle;
+    final borderCol = context.borderColor;
+
     final sitesState = context.watch<SiteBloc>().state;
     final sites = sitesState is SiteLoaded ? sitesState.sites : [];
 
@@ -204,21 +213,20 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: scaffoldBg,
         leading: IconButton(
           icon: Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.surfaceCardLight,
+              color: surfaceSubtle,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08), width: 1),
+              border: Border.all(color: borderCol, width: 1),
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded,
-                size: 16, color: AppColors.onSurface),
+            child: Icon(Icons.arrow_back_ios_new_rounded,
+                size: 16, color: textPrimary),
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -227,7 +235,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: AppColors.onSurface,
+            color: textPrimary,
           ),
         ),
         actions: [
@@ -270,7 +278,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline_rounded,
+                      const Icon(Icons.info_outline_rounded,
                           color: AppColors.warning, size: 18),
                       const SizedBox(width: 10),
                       Expanded(
@@ -286,21 +294,27 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                   ),
                 )
               else ...[
-                _SectionLabel(label: 'Site'),
+                Text(
+                  'FACILITY / SITE',
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: textMuted,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedSiteUuid,
-                  dropdownColor: AppColors.surfaceCard,
+                  dropdownColor: cardBg,
                   style: GoogleFonts.outfit(
-                      color: AppColors.onSurface, fontSize: 14),
-                  icon: const Icon(Icons.expand_more_rounded,
-                      color: AppColors.onSurfaceMuted),
+                      color: textPrimary, fontSize: 14),
+                  icon: Icon(Icons.expand_more_rounded,
+                      color: textMuted),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.location_city_rounded,
-                        size: 20),
+                    prefixIcon: Icon(Icons.location_city_rounded,
+                        size: 20, color: textMuted),
                     hintText: 'Select a site',
-                    hintStyle: GoogleFonts.outfit(
-                        color: AppColors.onSurfaceMuted, fontSize: 14),
                   ),
                   items: sites.map((s) {
                     return DropdownMenuItem<String>(
@@ -315,22 +329,37 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                 ),
               ],
               const SizedBox(height: 20),
-              _SectionLabel(label: 'Note Title'),
+              Text(
+                'NOTE TITLE',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textMuted,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
                 style: GoogleFonts.outfit(
-                    color: AppColors.onSurface, fontSize: 14),
-                decoration: const InputDecoration(
-                  prefixIcon:
-                      Icon(Icons.title_rounded, size: 20),
-                  hintText: 'Enter a descriptive title',
+                    color: textPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.title_rounded, size: 20, color: textMuted),
+                  hintText: 'Enter observation or issue title',
                 ),
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 20),
-              _SectionLabel(label: 'Status'),
+              Text(
+                'STATUS',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textMuted,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 8),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -349,14 +378,14 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                               horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? color.withValues(alpha: 0.2)
-                                : AppColors.surfaceCardLight,
+                                ? color.withValues(alpha: 0.18)
+                                : surfaceSubtle,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: isSelected
                                   ? color.withValues(alpha: 0.6)
-                                  : Colors.white.withValues(alpha: 0.07),
-                              width: 1.5,
+                                  : borderCol,
+                              width: isSelected ? 1.5 : 1,
                             ),
                           ),
                           child: Text(
@@ -364,11 +393,9 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                             style: GoogleFonts.outfit(
                               fontSize: 13,
                               fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: isSelected
-                                  ? color
-                                  : AppColors.onSurfaceMuted,
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected ? color : textMuted,
                             ),
                           ),
                         ),
@@ -378,7 +405,15 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _SectionLabel(label: 'GPS Location'),
+              Text(
+                'GPS LOCATION',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textMuted,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -387,11 +422,11 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                     child: TextFormField(
                       controller: _locationController,
                       style: GoogleFonts.outfit(
-                          color: AppColors.onSurface, fontSize: 14),
-                      decoration: const InputDecoration(
+                          color: textPrimary, fontSize: 14),
+                      decoration: InputDecoration(
                         prefixIcon:
-                            Icon(Icons.my_location_rounded, size: 20),
-                        hintText: 'GPS coordinates',
+                            Icon(Icons.my_location_rounded, size: 20, color: textMuted),
+                        hintText: 'GPS coordinates or tag',
                       ),
                     ),
                   ),
@@ -407,7 +442,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                             ? null
                             : AppColors.primaryGradient,
                         color: _isLocating
-                            ? AppColors.surfaceCardLight
+                            ? surfaceSubtle
                             : null,
                         boxShadow: _isLocating
                             ? []
@@ -437,27 +472,43 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              _SectionLabel(label: 'Observations'),
+              Text(
+                'OBSERVATIONS & NOTES',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textMuted,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descController,
-                maxLines: 5,
+                maxLines: 4,
                 style: GoogleFonts.outfit(
-                    color: AppColors.onSurface, fontSize: 14),
-                decoration: const InputDecoration(
+                    color: textPrimary, fontSize: 14),
+                decoration: InputDecoration(
                   prefixIcon: Padding(
-                    padding: EdgeInsets.only(bottom: 64),
-                    child: Icon(Icons.notes_rounded, size: 20),
+                    padding: const EdgeInsets.only(bottom: 60),
+                    child: Icon(Icons.notes_rounded, size: 20, color: textMuted),
                   ),
-                  hintText: 'Detailed field observations...',
+                  hintText: 'Detailed field observations, measurements, equipment condition...',
                   alignLabelWithHint: true,
                 ),
               ),
               const SizedBox(height: 20),
-              _SectionLabel(label: 'Photo'),
+              Text(
+                'PHOTO ATTACHMENT',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textMuted,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 8),
-              _buildPhotoSection(),
-              const SizedBox(height: 28),
+              _buildPhotoSection(context),
+              const SizedBox(height: 32),
               GestureDetector(
                 onTap: _save,
                 child: Container(
@@ -501,18 +552,19 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
     );
   }
 
-  Widget _buildPhotoSection() {
+  Widget _buildPhotoSection(BuildContext context) {
     final hasPhoto = _selectedPhoto != null ||
         (_existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty);
+    final cardBg = context.surfaceColor;
+    final surfaceSubtle = context.surfaceSubtle;
+    final borderCol = context.borderColor;
+    final textMuted = context.textMutedColor;
 
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: AppColors.surfaceCard,
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-          width: 1,
-        ),
+        color: cardBg,
+        border: Border.all(color: borderCol, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -533,24 +585,28 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
             ClipRRect(
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(16)),
-              child: _existingPhotoUrl!.startsWith('http') ||
-                      _existingPhotoUrl!.startsWith('/')
-                  ? Container(
-                      height: 80,
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Photo: $_existingPhotoUrl',
-                        style: GoogleFonts.outfit(
-                            color: AppColors.onSurfaceMuted, fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
+              child: _existingPhotoUrl!.startsWith('http')
+                  ? Image.network(
+                      _existingPhotoUrl!,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                     )
                   : Image.file(
                       File(_existingPhotoUrl!),
                       height: 180,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      errorBuilder: (_, __, ___) => Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'Photo: $_existingPhotoUrl',
+                          style: GoogleFonts.outfit(
+                              color: textMuted, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
             ),
           ] else ...[
@@ -559,24 +615,21 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
               child: Column(
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 54,
+                    height: 54,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.surfaceCardLight,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.07),
-                        width: 1,
-                      ),
+                      color: surfaceSubtle,
+                      border: Border.all(color: borderCol, width: 1),
                     ),
-                    child: const Icon(Icons.camera_alt_outlined,
-                        color: AppColors.onSurfaceMuted, size: 24),
+                    child: Icon(Icons.camera_alt_outlined,
+                        color: textMuted, size: 24),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'No photo attached',
+                    'No photo attached yet',
                     style: GoogleFonts.outfit(
-                        color: AppColors.onSurfaceMuted, fontSize: 13),
+                        color: textMuted, fontSize: 13),
                   ),
                 ],
               ),
@@ -588,7 +641,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
               onPressed: _choosePhotoSource,
               icon: const Icon(Icons.add_a_photo_outlined, size: 18),
               label: Text(
-                hasPhoto ? 'Change Photo' : 'Add Photo',
+                hasPhoto ? 'Change Photo' : 'Attach Photo',
                 style: GoogleFonts.outfit(fontSize: 14),
               ),
               style: OutlinedButton.styleFrom(
@@ -610,9 +663,9 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Note'),
+        title: const Text('Delete Field Note'),
         content: const Text(
-            'Are you sure you want to permanently delete this field note?'),
+            'Are you sure you want to delete this note? It will be marked for deletion locally and removed upon next cloud sync.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -621,32 +674,12 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () {
               Navigator.pop(ctx);
-              context
-                  .read<NoteBloc>()
-                  .add(DeleteNoteEvent(widget.note!.uuid));
+              context.read<NoteBloc>().add(DeleteNoteEvent(widget.note!.uuid));
               Navigator.pop(context);
             },
             child: const Text('Delete'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label.toUpperCase(),
-      style: GoogleFonts.outfit(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: AppColors.onSurfaceMuted,
-        letterSpacing: 1.2,
       ),
     );
   }
@@ -667,17 +700,19 @@ class _BottomSheetOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceSubtle = context.surfaceSubtle;
+    final textPrimary = context.textPrimaryColor;
+    final textMuted = context.textMutedColor;
+    final borderCol = context.borderColor;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surfaceCardLight,
+          color: surfaceSubtle,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.06),
-            width: 1,
-          ),
+          border: Border.all(color: borderCol, width: 1),
         ),
         child: Row(
           children: [
@@ -699,19 +734,19 @@ class _BottomSheetOption extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: AppColors.onSurface,
+                    color: textPrimary,
                   ),
                 ),
                 Text(
                   subtitle,
                   style: GoogleFonts.outfit(
-                      fontSize: 12, color: AppColors.onSurfaceMuted),
+                      fontSize: 12, color: textMuted),
                 ),
               ],
             ),
             const Spacer(),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 14, color: AppColors.onSurfaceMuted),
+            Icon(Icons.arrow_forward_ios_rounded,
+                size: 14, color: textMuted),
           ],
         ),
       ),

@@ -37,7 +37,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 600),
     );
 
     _pulseAnim = Tween<double>(begin: 0.88, end: 1.0).animate(
@@ -67,7 +67,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _progressController.forward();
 
-    Timer(const Duration(milliseconds: 2500), _navigateNext);
+    Timer(const Duration(milliseconds: 600), _navigateNext);
   }
 
   void _navigateNext() {
@@ -105,8 +105,16 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+    final scaffoldBg = context.scaffoldBg;
+    final surfaceColor = context.surfaceColor;
+    final surfaceSubtle = context.surfaceSubtle;
+    final textSecondary = context.textSecondaryColor;
+    final textMuted = context.textMutedColor;
+    final borderCol = context.borderColor;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scaffoldBg,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -120,7 +128,7 @@ class _SplashScreenState extends State<SplashScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primary.withValues(alpha: 0.28),
+                    AppColors.primary.withValues(alpha: isDark ? 0.28 : 0.12),
                     Colors.transparent,
                   ],
                 ),
@@ -137,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.secondary.withValues(alpha: 0.22),
+                    AppColors.secondary.withValues(alpha: isDark ? 0.22 : 0.10),
                     Colors.transparent,
                   ],
                 ),
@@ -178,14 +186,16 @@ class _SplashScreenState extends State<SplashScreen>
                                     boxShadow: [
                                       BoxShadow(
                                         color: AppColors.primary.withValues(
-                                            alpha: 0.45 * _pulseAnim.value),
+                                            alpha: (isDark ? 0.45 : 0.28) *
+                                                _pulseAnim.value),
                                         blurRadius: 36,
                                         spreadRadius: 4,
                                         offset: const Offset(0, 10),
                                       ),
                                       BoxShadow(
                                         color: AppColors.secondary.withValues(
-                                            alpha: 0.35 * _pulseAnim.value),
+                                            alpha: (isDark ? 0.35 : 0.20) *
+                                                _pulseAnim.value),
                                         blurRadius: 28,
                                         spreadRadius: 2,
                                         offset: const Offset(0, -6),
@@ -198,9 +208,10 @@ class _SplashScreenState extends State<SplashScreen>
                                     child: Image.asset(
                                       'assets/images/logo.jpg',
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
                                         return Container(
-                                          color: AppColors.surface,
+                                          color: surfaceColor,
                                           child: const Icon(
                                             Icons.edit_note_rounded,
                                             size: 64,
@@ -216,15 +227,8 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           const SizedBox(height: 32),
                           ShaderMask(
-                            shaderCallback: (bounds) => const LinearGradient(
-                              colors: [
-                                Colors.white,
-                                Color(0xFFC7D2FE),
-                                AppColors.secondary,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ).createShader(bounds),
+                            shaderCallback: (bounds) =>
+                                context.titleGradient.createShader(bounds),
                             child: Text(
                               'FIELD NOTES',
                               style: GoogleFonts.syne(
@@ -236,32 +240,39 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
                           const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface.withValues(alpha: 0.7),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.border,
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              'ENTERPRISE OFFLINE-FIRST FIELD OPS',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.6,
-                                color: AppColors.textSecondary,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: surfaceSubtle.withValues(
+                                      alpha: isDark ? 0.7 : 0.9),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: borderCol,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  'ENTERPRISE OFFLINE-FIRST FIELD OPS',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.6,
+                                    color: textSecondary,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                           const Spacer(flex: 3),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 56),
+                            padding: const EdgeInsets.symmetric(horizontal: 36),
                             child: Column(
                               children: [
                                 ClipRRect(
@@ -270,7 +281,7 @@ class _SplashScreenState extends State<SplashScreen>
                                     height: 4,
                                     child: LinearProgressIndicator(
                                       value: _progressAnim.value,
-                                      backgroundColor: AppColors.surfaceLight,
+                                      backgroundColor: surfaceSubtle,
                                       valueColor:
                                           const AlwaysStoppedAnimation<Color>(
                                         AppColors.secondary,
@@ -279,25 +290,28 @@ class _SplashScreenState extends State<SplashScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.lock_rounded,
-                                      size: 13,
-                                      color: AppColors.textTertiary,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'AES-256 ENCRYPTED  •  ZERO-LATENCY OFFLINE',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.8,
-                                        color: AppColors.textTertiary,
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.lock_rounded,
+                                        size: 13,
+                                        color: textMuted,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'AES-256 ENCRYPTED  •  ZERO-LATENCY OFFLINE',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.8,
+                                          color: textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -309,7 +323,7 @@ class _SplashScreenState extends State<SplashScreen>
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
                               letterSpacing: 1.2,
-                              color: AppColors.textTertiary.withValues(alpha: 0.6),
+                              color: textMuted.withValues(alpha: 0.7),
                             ),
                           ),
                           const SizedBox(height: 16),
